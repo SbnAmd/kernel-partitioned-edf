@@ -1830,12 +1830,12 @@ select_task_rq_dl(struct task_struct *p, int cpu, int flags)
 {
 
 
-	struct task_struct *curr;
-	bool select_rq;
-	struct rq *rq;
+	//struct task_struct *curr;
+	//bool select_rq;
+	//struct rq *rq;
 
-	if (!(flags & WF_TTWU))
-		goto out;
+	//if (!(flags & WF_TTWU))
+	//	goto out;
 
 	//rq = cpu_rq(cpu);
 
