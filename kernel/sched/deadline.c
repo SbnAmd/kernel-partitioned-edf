@@ -1828,6 +1828,8 @@ static int find_later_rq(struct task_struct *task);
 static int
 select_task_rq_dl(struct task_struct *p, int cpu, int flags)
 {
+
+
 	struct task_struct *curr;
 	bool select_rq;
 	struct rq *rq;
@@ -1835,10 +1837,10 @@ select_task_rq_dl(struct task_struct *p, int cpu, int flags)
 	if (!(flags & WF_TTWU))
 		goto out;
 
-	rq = cpu_rq(cpu);
+	//rq = cpu_rq(cpu);
 
-	rcu_read_lock();
-	curr = READ_ONCE(rq->curr); /* unlocked access */
+	//rcu_read_lock();
+	//curr = READ_ONCE(rq->curr); /* unlocked access */
 
 	/*
 	 * If we are dealing with a -deadline task, we must
@@ -1849,28 +1851,36 @@ select_task_rq_dl(struct task_struct *p, int cpu, int flags)
 	 * other hand, if it has a shorter deadline, we
 	 * try to make it stay here, it might be important.
 	 */
-	select_rq = unlikely(dl_task(curr)) &&
-		    (curr->nr_cpus_allowed < 2 ||
-		     !dl_entity_preempt(&p->dl, &curr->dl)) &&
-		    p->nr_cpus_allowed > 1;
+	//select_rq = unlikely(dl_task(curr)) &&
+	//	    (curr->nr_cpus_allowed < 2 ||
+	//	     !dl_entity_preempt(&p->dl, &curr->dl)) &&
+	//	    p->nr_cpus_allowed > 1;
 
 	/*
 	 * Take the capacity of the CPU into account to
 	 * ensure it fits the requirement of the task.
 	 */
-	if (sched_asym_cpucap_active())
-		select_rq |= !dl_task_fits_capacity(p, cpu);
+	//if (sched_asym_cpucap_active())
+	//	select_rq |= !dl_task_fits_capacity(p, cpu);
 
-	if (select_rq) {
-		int target = find_later_rq(p);
+	//if (select_rq) {
+	//	int target = find_later_rq(p);
 
-		if (target != -1 &&
-		    dl_task_is_earliest_deadline(p, cpu_rq(target)))
-			cpu = target;
-	}
-	rcu_read_unlock();
+	//	if (target != -1 &&
+	//	    dl_task_is_earliest_deadline(p, cpu_rq(target)))
+	//		cpu = target;
+	//}
+	//rcu_read_unlock();
 
 out:
+
+    /*
+	 * LEVEL 1:
+	 * Disable SCHED_DEADLINE task migration.
+	 *
+	 * Always keep the task on the current candidate CPU.
+	 * This approximates partitioned EDF behavior.
+	 */
 	return cpu;
 }
 
