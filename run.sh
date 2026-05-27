@@ -1,6 +1,6 @@
 #!/bin/bash
 
-
+gcc -static multiple_tasks.c -o dl_test
 cp dl_test ../initramfs/
 cp dl_test ../initramfs/bin/
 cd ../initramfs/

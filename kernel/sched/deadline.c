@@ -2101,7 +2101,7 @@ static void task_fork_dl(struct task_struct *p)
 
 /* Only try algorithms three times */
 #define DL_MAX_TRIES 3
-
+/*    fixme COMMENTED BY SBN
 static int pick_dl_task(struct rq *rq, struct task_struct *p, int cpu)
 {
 	if (!task_on_cpu(rq, p) &&
@@ -2109,11 +2109,13 @@ static int pick_dl_task(struct rq *rq, struct task_struct *p, int cpu)
 		return 1;
 	return 0;
 }
-
+*/
 /*
  * Return the earliest pushable rq's task, which is suitable to be executed
  * on the CPU, NULL otherwise:
  */
+
+/*	fixme COMMENTED BY SBN
 static struct task_struct *pick_earliest_pushable_dl_task(struct rq *rq, int cpu)
 {
 	struct task_struct *p = NULL;
@@ -2137,7 +2139,7 @@ next_node:
 
 	return NULL;
 }
-
+*/
 static DEFINE_PER_CPU(cpumask_var_t, local_cpu_mask_dl);
 
 static int find_later_rq(struct task_struct *task)
@@ -2281,7 +2283,7 @@ static struct rq *find_lock_later_rq(struct task_struct *task, struct rq *rq)
 
 	return later_rq;
 }
-
+/*	fixme COMMENTED BY SBN
 static struct task_struct *pick_next_pushable_dl_task(struct rq *rq)
 {
 	struct task_struct *p;
@@ -2300,7 +2302,7 @@ static struct task_struct *pick_next_pushable_dl_task(struct rq *rq)
 
 	return p;
 }
-
+*/
 /*
  * See if the non running -deadline tasks on this rq
  * can be sent to some other CPU where they can preempt
@@ -2308,80 +2310,81 @@ static struct task_struct *pick_next_pushable_dl_task(struct rq *rq)
  */
 static int push_dl_task(struct rq *rq)
 {
-	struct task_struct *next_task;
-	struct rq *later_rq;
-	int ret = 0;
+// 	struct task_struct *next_task;
+// 	struct rq *later_rq;
+// 	int ret = 0;
+//
+// 	if (!rq->dl.overloaded)
+// 		return 0;
+//
+// 	next_task = pick_next_pushable_dl_task(rq);
+// 	if (!next_task)
+// 		return 0;
+//
+// retry:
+// 	/*
+// 	 * If next_task preempts rq->curr, and rq->curr
+// 	 * can move away, it makes sense to just reschedule
+// 	 * without going further in pushing next_task.
+// 	 */
+// 	if (dl_task(rq->curr) &&
+// 	    dl_time_before(next_task->dl.deadline, rq->curr->dl.deadline) &&
+// 	    rq->curr->nr_cpus_allowed > 1) {
+// 		resched_curr(rq);
+// 		return 0;
+// 	}
+//
+// 	if (is_migration_disabled(next_task))
+// 		return 0;
+//
+// 	if (WARN_ON(next_task == rq->curr))
+// 		return 0;
+//
+// 	/* We might release rq lock */
+// 	get_task_struct(next_task);
+//
+// 	/* Will lock the rq it'll find */
+// 	later_rq = find_lock_later_rq(next_task, rq);
+// 	if (!later_rq) {
+// 		struct task_struct *task;
+//
+// 		/*
+// 		 * We must check all this again, since
+// 		 * find_lock_later_rq releases rq->lock and it is
+// 		 * then possible that next_task has migrated.
+// 		 */
+// 		task = pick_next_pushable_dl_task(rq);
+// 		if (task == next_task) {
+// 			/*
+// 			 * The task is still there. We don't try
+// 			 * again, some other CPU will pull it when ready.
+// 			 */
+// 			goto out;
+// 		}
+//
+// 		if (!task)
+// 			/* No more tasks */
+// 			goto out;
+//
+// 		put_task_struct(next_task);
+// 		next_task = task;
+// 		goto retry;
+// 	}
 
-	if (!rq->dl.overloaded)
-		return 0;
-
-	next_task = pick_next_pushable_dl_task(rq);
-	if (!next_task)
-		return 0;
-
-retry:
-	/*
-	 * If next_task preempts rq->curr, and rq->curr
-	 * can move away, it makes sense to just reschedule
-	 * without going further in pushing next_task.
-	 */
-	if (dl_task(rq->curr) &&
-	    dl_time_before(next_task->dl.deadline, rq->curr->dl.deadline) &&
-	    rq->curr->nr_cpus_allowed > 1) {
-		resched_curr(rq);
-		return 0;
-	}
-
-	if (is_migration_disabled(next_task))
-		return 0;
-
-	if (WARN_ON(next_task == rq->curr))
-		return 0;
-
-	/* We might release rq lock */
-	get_task_struct(next_task);
-
-	/* Will lock the rq it'll find */
-	later_rq = find_lock_later_rq(next_task, rq);
-	if (!later_rq) {
-		struct task_struct *task;
-
-		/*
-		 * We must check all this again, since
-		 * find_lock_later_rq releases rq->lock and it is
-		 * then possible that next_task has migrated.
-		 */
-		task = pick_next_pushable_dl_task(rq);
-		if (task == next_task) {
-			/*
-			 * The task is still there. We don't try
-			 * again, some other CPU will pull it when ready.
-			 */
-			goto out;
-		}
-
-		if (!task)
-			/* No more tasks */
-			goto out;
-
-		put_task_struct(next_task);
-		next_task = task;
-		goto retry;
-	}
-
-	deactivate_task(rq, next_task, 0);
-	set_task_cpu(next_task, later_rq->cpu);
-	activate_task(later_rq, next_task, 0);
-	ret = 1;
-
-	resched_curr(later_rq);
-
-	double_unlock_balance(rq, later_rq);
-
-out:
-	put_task_struct(next_task);
-
-	return ret;
+// 	deactivate_task(rq, next_task, 0);
+// 	set_task_cpu(next_task, later_rq->cpu);
+// 	activate_task(later_rq, next_task, 0);
+// 	ret = 1;
+//
+// 	resched_curr(later_rq);
+//
+// 	double_unlock_balance(rq, later_rq);
+//
+// out:
+// 	put_task_struct(next_task);
+//
+// 	return ret;
+	return 0;
 }
 
 static void push_dl_tasks(struct rq *rq)
@@ -2393,94 +2396,95 @@ static void push_dl_tasks(struct rq *rq)
 
 static void pull_dl_task(struct rq *this_rq)
 {
-	int this_cpu = this_rq->cpu, cpu;
-	struct task_struct *p, *push_task;
-	bool resched = false;
-	struct rq *src_rq;
-	u64 dmin = LONG_MAX;
-
-	if (likely(!dl_overloaded(this_rq)))
-		return;
-
-	/*
-	 * Match the barrier from dl_set_overloaded; this guarantees that if we
-	 * see overloaded we must also see the dlo_mask bit.
-	 */
-	smp_rmb();
-
-	for_each_cpu(cpu, this_rq->rd->dlo_mask) {
-		if (this_cpu == cpu)
-			continue;
-
-		src_rq = cpu_rq(cpu);
-
-		/*
-		 * It looks racy, abd it is! However, as in sched_rt.c,
-		 * we are fine with this.
-		 */
-		if (this_rq->dl.dl_nr_running &&
-		    dl_time_before(this_rq->dl.earliest_dl.curr,
-				   src_rq->dl.earliest_dl.next))
-			continue;
-
-		/* Might drop this_rq->lock */
-		push_task = NULL;
-		double_lock_balance(this_rq, src_rq);
-
-		/*
-		 * If there are no more pullable tasks on the
-		 * rq, we're done with it.
-		 */
-		if (src_rq->dl.dl_nr_running <= 1)
-			goto skip;
-
-		p = pick_earliest_pushable_dl_task(src_rq, this_cpu);
-
-		/*
-		 * We found a task to be pulled if:
-		 *  - it preempts our current (if there's one),
-		 *  - it will preempt the last one we pulled (if any).
-		 */
-		if (p && dl_time_before(p->dl.deadline, dmin) &&
-		    dl_task_is_earliest_deadline(p, this_rq)) {
-			WARN_ON(p == src_rq->curr);
-			WARN_ON(!task_on_rq_queued(p));
-
-			/*
-			 * Then we pull iff p has actually an earlier
-			 * deadline than the current task of its runqueue.
-			 */
-			if (dl_time_before(p->dl.deadline,
-					   src_rq->curr->dl.deadline))
-				goto skip;
-
-			if (is_migration_disabled(p)) {
-				push_task = get_push_task(src_rq);
-			} else {
-				deactivate_task(src_rq, p, 0);
-				set_task_cpu(p, this_cpu);
-				activate_task(this_rq, p, 0);
-				dmin = p->dl.deadline;
-				resched = true;
-			}
-
-			/* Is there any other task even earlier? */
-		}
-skip:
-		double_unlock_balance(this_rq, src_rq);
-
-		if (push_task) {
-			preempt_disable();
-			raw_spin_rq_unlock(this_rq);
-			stop_one_cpu_nowait(src_rq->cpu, push_cpu_stop,
-					    push_task, &src_rq->push_work);
-			preempt_enable();
-			raw_spin_rq_lock(this_rq);
-		}
-	}
-
-	if (resched)
-		resched_curr(this_rq);
+// 	int this_cpu = this_rq->cpu, cpu;
+// 	struct task_struct *p, *push_task;
+// 	bool resched = false;
+// 	struct rq *src_rq;
+// 	u64 dmin = LONG_MAX;
+//
+// 	if (likely(!dl_overloaded(this_rq)))
+// 		return;
+//
+// 	/*
+// 	 * Match the barrier from dl_set_overloaded; this guarantees that if we
+// 	 * see overloaded we must also see the dlo_mask bit.
+// 	 */
+// 	smp_rmb();
+//
+// 	for_each_cpu(cpu, this_rq->rd->dlo_mask) {
+// 		if (this_cpu == cpu)
+// 			continue;
+//
+// 		src_rq = cpu_rq(cpu);
+//
+// 		/*
+// 		 * It looks racy, abd it is! However, as in sched_rt.c,
+// 		 * we are fine with this.
+// 		 */
+// 		if (this_rq->dl.dl_nr_running &&
+// 		    dl_time_before(this_rq->dl.earliest_dl.curr,
+// 				   src_rq->dl.earliest_dl.next))
+// 			continue;
+//
+// 		/* Might drop this_rq->lock */
+// 		push_task = NULL;
+// 		double_lock_balance(this_rq, src_rq);
+//
+// 		/*
+// 		 * If there are no more pullable tasks on the
+// 		 * rq, we're done with it.
+// 		 */
+// 		if (src_rq->dl.dl_nr_running <= 1)
+// 			goto skip;
+//
+// 		p = pick_earliest_pushable_dl_task(src_rq, this_cpu);
+//
+// 		/*
+// 		 * We found a task to be pulled if:
+// 		 *  - it preempts our current (if there's one),
+// 		 *  - it will preempt the last one we pulled (if any).
+// 		 */
+// 		if (p && dl_time_before(p->dl.deadline, dmin) &&
+// 		    dl_task_is_earliest_deadline(p, this_rq)) {
+// 			WARN_ON(p == src_rq->curr);
+// 			WARN_ON(!task_on_rq_queued(p));
+//
+// 			/*
+// 			 * Then we pull iff p has actually an earlier
+// 			 * deadline than the current task of its runqueue.
+// 			 */
+// 			if (dl_time_before(p->dl.deadline,
+// 					   src_rq->curr->dl.deadline))
+// 				goto skip;
+//
+// 			if (is_migration_disabled(p)) {
+// 				push_task = get_push_task(src_rq);
+// 			} else {
+// 				deactivate_task(src_rq, p, 0);
+// 				set_task_cpu(p, this_cpu);
+// 				activate_task(this_rq, p, 0);
+// 				dmin = p->dl.deadline;
+// 				resched = true;
+// 			}
+//
+// 			/* Is there any other task even earlier? */
+// 		}
+// skip:
+// 		double_unlock_balance(this_rq, src_rq);
+//
+// 		if (push_task) {
+// 			preempt_disable();
+// 			raw_spin_rq_unlock(this_rq);
+// 			stop_one_cpu_nowait(src_rq->cpu, push_cpu_stop,
+// 					    push_task, &src_rq->push_work);
+// 			preempt_enable();
+// 			raw_spin_rq_lock(this_rq);
+// 		}
+// 	}
+//
+// 	if (resched)
+// 		resched_curr(this_rq);
+	return;
 }
 
 /*
