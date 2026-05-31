@@ -1,18 +1,354 @@
-Linux kernel
-============
+# Dedicated EDF Core Prototype for Linux SCHED_DEADLINE
 
-There are several guides for kernel developers and users. These guides can
-be rendered in a number of formats, like HTML and PDF. Please read
-Documentation/admin-guide/README.rst first.
+## Project Overview
 
-In order to build the documentation, use ``make htmldocs`` or
-``make pdfdocs``.  The formatted documentation can also be read online at:
+This project explores the transformation of Linux SCHED_DEADLINE from its default globally balanced scheduling model into a dedicated-core partitioned EDF scheduler.
 
-    https://www.kernel.org/doc/html/latest/
+The long-term goal is to reserve a CPU exclusively for SCHED_DEADLINE tasks, eliminate migrations, implement per-core feasibility analysis, and eventually create a CPU that executes only deadline tasks.
 
-There are various text files in the Documentation/ subdirectory,
-several of them using the Restructured Text markup notation.
+---
 
-Please read the Documentation/process/changes.rst file, as it contains the
-requirements for building and running the kernel, and information about
-the problems which may result by upgrading your kernel.
+# Development Environment
+
+Kernel Version:
+
+* Linux 6.1.90
+
+Architecture:
+
+* x86_64
+
+Execution Environment:
+
+* QEMU
+* BusyBox-based initramfs
+
+Kernel Build:
+
+* Built directly from Linux source tarball
+* Booted using bzImage
+
+---
+
+# Initial Goal
+
+Linux SCHED_DEADLINE behaves as a globally balanced scheduler:
+
+* Tasks may migrate between CPUs.
+* Deadline balancing occurs automatically.
+* Utilization accounting is performed globally.
+
+The objective of this work is to investigate a partitioned EDF approach where:
+
+* Deadline tasks remain on assigned CPUs.
+* Deadline balancing is disabled.
+* Future admission control becomes CPU-local.
+
+---
+
+# Source Code Modifications
+
+## Modified File
+
+```text
+kernel/sched/deadline.c
+```
+
+---
+
+## Modification 1: Disable Wakeup-Time Migration
+
+### Function
+
+```c
+select_task_rq_dl()
+```
+
+### Original Behavior
+
+When a deadline task wakes up, the scheduler may select a different CPU based on:
+
+* deadline ordering
+* CPU capacity
+* balancing decisions
+* migration opportunities
+
+Functions such as:
+
+```c
+find_later_rq(...)
+```
+
+may be used to locate another CPU.
+
+### Modification
+
+Wakeup CPU reselection logic was removed.
+
+The scheduler now keeps the task on its current CPU instead of searching for another CPU.
+
+### Result
+
+* Wakeup migrations eliminated.
+* Deadline tasks tend to remain on their assigned CPUs.
+* Behavior becomes closer to partitioned EDF scheduling.
+
+---
+
+## Modification 2: Disable Deadline Push Balancing
+
+### Function
+
+```c
+push_dl_task()
+```
+
+### Original Behavior
+
+When a CPU becomes overloaded, Linux may push deadline tasks to another CPU.
+
+### Modification
+
+Function behavior was disabled:
+
+```c
+static int push_dl_task(struct rq *rq)
+{
+    return 0;
+}
+```
+
+### Result
+
+* Deadline tasks are never pushed away.
+* CPU-local execution is preserved.
+
+---
+
+## Modification 3: Disable Deadline Pull Balancing
+
+### Function
+
+```c
+pull_dl_task()
+```
+
+### Original Behavior
+
+Idle CPUs may steal deadline tasks from other CPUs.
+
+### Modification
+
+Function behavior was disabled:
+
+```c
+static int pull_dl_task(struct rq *this_rq)
+{
+    return 0;
+}
+```
+
+### Result
+
+* Deadline tasks are never pulled by other CPUs.
+* CPU-local execution is preserved.
+
+---
+
+# Combined Effect of Scheduler Modifications
+
+The following mechanisms are now disabled:
+
+* Wakeup migration
+* Push balancing
+* Pull balancing
+
+As a result:
+
+* Deadline tasks remain on assigned CPUs.
+* Cross-CPU migration is effectively eliminated.
+* Scheduler behavior resembles partitioned EDF.
+
+---
+
+# Test Infrastructure
+
+A custom SCHED_DEADLINE test application was developed.
+
+Features:
+
+* Creates multiple deadline tasks using fork().
+* Configures SCHED_DEADLINE through sched_setattr().
+* Periodically prints the CPU on which each task executes.
+
+CPU monitoring is performed using:
+
+```c
+sched_getcpu()
+```
+
+Example output:
+
+```text
+TASK 0 running on CPU 0
+TASK 1 running on CPU 1
+TASK 2 running on CPU 2
+```
+
+---
+
+# Experimental Results
+
+## Experiment A
+
+Condition:
+
+```text
+Number of DL tasks <= Number of CPUs
+```
+
+Observed Behavior:
+
+* Tasks remain on separate CPUs.
+* No migrations observed.
+
+Result:
+
+Behavior resembles partitioned EDF scheduling.
+
+---
+
+## Experiment B
+
+Condition:
+
+```text
+Number of DL tasks > Number of CPUs
+```
+
+Before Disabling Push/Pull Balancing:
+
+* Migrations occurred.
+* Linux redistributed deadline tasks.
+
+After Disabling Push/Pull Balancing:
+
+* No migrations observed.
+* Tasks remained on overloaded CPUs.
+
+Result:
+
+Overload becomes localized.
+
+---
+
+# Observed Kernel Warning
+
+During overload experiments the following warning appeared:
+
+```text
+sched: DL replenish lagged too much
+```
+
+Possible explanation:
+
+* Balancing mechanisms are disabled.
+* CPU overload remains local.
+* Runtime replenishment may be delayed.
+
+This warning was not observed before disabling deadline balancing.
+
+---
+
+# Current Scheduler State
+
+Current implementation provides:
+
+* Disabled wakeup migration
+* Disabled deadline push balancing
+* Disabled deadline pull balancing
+* CPU-local deadline execution
+
+Current behavior is significantly closer to partitioned EDF than the stock Linux SCHED_DEADLINE implementation.
+
+---
+
+# Next Development Phase
+
+## Dedicated EDF Core
+
+Goal:
+
+Reserve one CPU exclusively for deadline scheduling.
+
+Example:
+
+```text
+CPU 3    -> SCHED_DEADLINE only
+CPU 0-2  -> CFS / RT / Linux housekeeping
+```
+
+Planned work:
+
+1. Force all deadline tasks onto the dedicated EDF CPU.
+2. Prevent CFS from selecting the EDF CPU.
+3. Prevent RT from selecting the EDF CPU.
+4. Investigate CPU isolation mechanisms.
+
+---
+
+## Per-Core EDF Admission Control
+
+Current Linux implementation:
+
+```text
+Global deadline bandwidth accounting
+```
+
+Target implementation:
+
+```text
+Single-core EDF admission control
+```
+
+Admission rule:
+
+Sum of utilizations must satisfy:
+
+U = Σ(Ci / Ti)
+
+where:
+
+* Ci = runtime
+* Ti = period
+
+Accept task if:
+
+U <= 1.0
+
+Reject task if:
+
+U > 1.0
+
+This admission control will apply only to the dedicated EDF CPU.
+
+---
+
+# Long-Term Goal
+
+Create a Linux scheduler prototype with:
+
+* Dedicated EDF CPU
+* No deadline migrations
+* Per-core EDF admission control
+* Deadline-only CPU ownership
+* Isolation from CFS and RT workloads
+
+Potential research directions include:
+
+* Partitioned EDF scheduling
+* Mixed-criticality systems
+* CPU isolation for real-time workloads
+* Dedicated real-time execution cores
+* Reinforcement-learning-based task assignment
+* Linux scheduler architecture modifications
